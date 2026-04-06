@@ -22,6 +22,8 @@ struct PyCdmHeader {
     pub miss_distance: f64,
     #[pyo3(get)]
     pub hbr: Option<f64>,
+    #[pyo3(get)]
+    pub collision_probability: f64,
 }
 
 #[pyclass]
@@ -64,6 +66,7 @@ fn parse_cdm(path: String) -> PyResult<PyCdm> {
             tca: cdm.header.tca,
             miss_distance: cdm.header.miss_distance,
             hbr: cdm.header.hbr,
+            collision_probability: cdm.header.collision_probability,
         },
         object1: PyCdmObject {
             object_name: cdm.object1.object_name,
@@ -281,6 +284,44 @@ fn get_timestring_to_jd(timestring: String) -> PyResult<f64> {
     Ok(timestring_to_jd(&timestring))
 }
 
+#[pyfunction]
+fn compute_pc_circle_from_cdm(path: String) -> PyResult<f64> {
+    let cdm = parse_cdm_kvn(&path).map_err(|e| PyRuntimeError::new_err(e))?;
+    let r1 = Vector3::new(cdm.object1.x, cdm.object1.y, cdm.object1.z);
+    let v1 = Vector3::new(cdm.object1.x_dot, cdm.object1.y_dot, cdm.object1.z_dot);
+    let r2 = Vector3::new(cdm.object2.x, cdm.object2.y, cdm.object2.z);
+    let v2 = Vector3::new(cdm.object2.x_dot, cdm.object2.y_dot, cdm.object2.z_dot);
+    let cov1_ndarray = (Array2::from_shape_vec((6, 6), cdm.object1.covariance.iter().cloned().collect()).unwrap()) / 1e6;
+    let cov2_ndarray = (Array2::from_shape_vec((6, 6), cdm.object2.covariance.iter().cloned().collect()).unwrap()) / 1e6;
+    let cov1_eci_full = ric_to_eci(&cov1_ndarray, &r1, &v1, true);
+    let cov2_eci_full = ric_to_eci(&cov2_ndarray, &r2, &v2, true);
+    let cov1_eci_3x3 = Matrix3::from_iterator(cov1_eci_full.slice(ndarray::s![0..3, 0..3]).iter().cloned());
+    let cov2_eci_3x3 = Matrix3::from_iterator(cov2_eci_full.slice(ndarray::s![0..3, 0..3]).iter().cloned());
+    let hbr_m = cdm.header.hbr.unwrap_or(15.0); 
+    let hbr_km = hbr_m / 1000.0;
+    let output = pc_circle(&r1, &v1, &cov1_eci_3x3, &r2, &v2, &cov2_eci_3x3, hbr_km, PcCircleEstimationMode::GaussChebyshev(64));
+    Ok(output.pc)
+}
+
+#[pyfunction]
+fn compute_pc_elrod_from_cdm(path: String) -> PyResult<f64> {
+    let cdm = parse_cdm_kvn(&path).map_err(|e| PyRuntimeError::new_err(e))?;
+    let r1 = Vector3::new(cdm.object1.x, cdm.object1.y, cdm.object1.z);
+    let v1 = Vector3::new(cdm.object1.x_dot, cdm.object1.y_dot, cdm.object1.z_dot);
+    let r2 = Vector3::new(cdm.object2.x, cdm.object2.y, cdm.object2.z);
+    let v2 = Vector3::new(cdm.object2.x_dot, cdm.object2.y_dot, cdm.object2.z_dot);
+    let cov1_ndarray = (Array2::from_shape_vec((6, 6), cdm.object1.covariance.iter().cloned().collect()).unwrap()) / 1e6;
+    let cov2_ndarray = (Array2::from_shape_vec((6, 6), cdm.object2.covariance.iter().cloned().collect()).unwrap()) / 1e6;
+    let cov1_eci_full = ric_to_eci(&cov1_ndarray, &r1, &v1, true);
+    let cov2_eci_full = ric_to_eci(&cov2_ndarray, &r2, &v2, true);
+    let cov1_eci_3x3 = Matrix3::from_iterator(cov1_eci_full.slice(ndarray::s![0..3, 0..3]).iter().cloned());
+    let cov2_eci_3x3 = Matrix3::from_iterator(cov2_eci_full.slice(ndarray::s![0..3, 0..3]).iter().cloned());
+    let hbr_m = cdm.header.hbr.unwrap_or(15.0); 
+    let hbr_km = hbr_m / 1000.0;
+    let output = pc_elrod(&r1, &v1, &cov1_eci_3x3, &r2, &v2, &cov2_eci_3x3, hbr_km, 64);
+    Ok(output.pc)
+}
+
 #[pymodule]
 fn cara_py(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_2d_foster, m)?)?;
@@ -288,6 +329,8 @@ fn cara_py(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_pc_elrod, m)?)?;
     m.add_function(wrap_pyfunction!(compute_pc_sdmc, m)?)?;
     m.add_function(wrap_pyfunction!(compute_pc_from_cdm, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_pc_circle_from_cdm, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_pc_elrod_from_cdm, m)?)?;
     m.add_function(wrap_pyfunction!(rotate_eci_to_ric, m)?)?;
     m.add_function(wrap_pyfunction!(cart_to_keplerian, m)?)?;
     m.add_function(wrap_pyfunction!(get_timestring_to_jd, m)?)?;

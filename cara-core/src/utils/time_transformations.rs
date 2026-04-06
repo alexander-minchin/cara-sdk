@@ -35,6 +35,10 @@ pub fn timestring_to_jd(timestring: &str) -> f64 {
         DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
     } else if let Ok(dt) = NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%d %H:%M:%S") {
         DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+    } else if let Ok(dt) = NaiveDateTime::parse_from_str(&normalized, "%Y-%j %H:%M:%S%.f") {
+        DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
+    } else if let Ok(dt) = NaiveDateTime::parse_from_str(&normalized, "%Y-%j %H:%M:%S") {
+        DateTime::<Utc>::from_naive_utc_and_offset(dt, Utc)
     } else {
         panic!("Failed to parse timestring: {}", timestring);
     };
