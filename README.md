@@ -19,6 +19,9 @@ A high-performance Rust port of the NASA CARA (Conjunction Assessment Risk Analy
   - **Pc Elrod:** Efficient analytical error function method.
   - **Pc SDMC:** High-fidelity Scaled Distance Monte Carlo.
   - **Covariance Remediation:** Automatic eigenvalue clipping for numerical stability.
+- **Covariance Realism:**
+  - **Normality Tests:** Cramer-von Mises and Anderson-Darling goodness-of-fit tests.
+  - **Residual Evaluation:** Analyze if observed residuals conform to predicted covariances.
 - **CDM Analysis:**
   - **KVN Parser:** Read standard CCSDS Conjunction Data Messages.
   - **Automated Calculation:** Directly compute Pc from CDM files.

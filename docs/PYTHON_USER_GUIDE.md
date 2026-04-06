@@ -91,6 +91,31 @@ pc = cara_py.compute_pc_from_cdm(cdm_path)
 print(f"Calculated Pc: {pc:.2e}")
 ```
 
+## Covariance Realism
+
+Covariance realism analysis assesses whether predicted covariances accurately represent the actual distribution of observed residuals.
+
+### Normality Tests (Goodness-of-Fit)
+
+The SDK provides high-performance implementations of Empirical Distribution Function (EDF) tests to check if data follows a standard Normal distribution.
+
+*   **Cramer-von Mises (W2):** Measures the overall fit of the distribution.
+*   **Anderson-Darling (A2):** Places more weight on the "tails" of the distribution, making it sensitive to outliers.
+
+```python
+# Sample data (e.g., normalized residuals)
+data = np.random.normal(0, 1, 100)
+
+# Perform normality test against N(0, 1)
+results = cara_py.test_normality(data, mean=0.0, std_dev=1.0)
+
+print(f"Cramer-von Mises p-value: {results.w2_p:.4f}")
+print(f"Anderson-Darling p-value: {results.a2_p:.4f}")
+
+if results.a2_p < 0.05:
+    print("Warning: Data significantly deviates from a normal distribution.")
+```
+
 ## Coordinate Transformations
 
 ### ECI to RIC Rotation
