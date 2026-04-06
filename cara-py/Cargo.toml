@@ -15,3 +15,4 @@ cara-core = { path = "../cara-core" }
 pyo3 = { version = "0.20", features = ["extension-module"] }
 numpy = "0.20"
 nalgebra = "0.32"
+ndarray = "0.15"

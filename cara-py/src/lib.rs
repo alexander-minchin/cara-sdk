@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
+use pyo3::exceptions::PyRuntimeError;
 use numpy::{PyReadonlyArray1, PyReadonlyArray2, ToPyArray};
+use ndarray::Array2;
 use cara_core::probability_of_collision::foster::{pc_2d_foster, HbrType};
 use cara_core::probability_of_collision::circle::{pc_circle, PcCircleEstimationMode};
 use cara_core::utils::time_transformations::timestring_to_jd;
@@ -113,13 +115,125 @@ fn get_timestring_to_jd(timestring: String) -> PyResult<f64> {
     Ok(timestring_to_jd(&timestring))
 }
 
+use cara_core::cdm::{parse_cdm_kvn, Cdm, CdmHeader, CdmObject};
+
+#[pyclass]
+#[derive(Clone)]
+struct PyCdmHeader {
+    #[pyo3(get)]
+    pub version: String,
+    #[pyo3(get)]
+    pub tca: String,
+    #[pyo3(get)]
+    pub miss_distance: f64,
+    #[pyo3(get)]
+    pub hbr: Option<f64>,
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct PyCdmObject {
+    #[pyo3(get)]
+    pub object_name: String,
+    #[pyo3(get)]
+    pub x: f64,
+    #[pyo3(get)]
+    pub y: f64,
+    #[pyo3(get)]
+    pub z: f64,
+    #[pyo3(get)]
+    pub x_dot: f64,
+    #[pyo3(get)]
+    pub y_dot: f64,
+    #[pyo3(get)]
+    pub z_dot: f64,
+}
+
+#[pyclass]
+#[derive(Clone)]
+struct PyCdm {
+    #[pyo3(get)]
+    pub header: PyCdmHeader,
+    #[pyo3(get)]
+    pub object1: PyCdmObject,
+    #[pyo3(get)]
+    pub object2: PyCdmObject,
+}
+
+#[pyfunction]
+fn parse_cdm(path: String) -> PyResult<PyCdm> {
+    let cdm = parse_cdm_kvn(&path).map_err(|e| PyRuntimeError::new_err(e))?;
+    
+    Ok(PyCdm {
+        header: PyCdmHeader {
+            version: cdm.header.version,
+            tca: cdm.header.tca,
+            miss_distance: cdm.header.miss_distance,
+            hbr: cdm.header.hbr,
+        },
+        object1: PyCdmObject {
+            object_name: cdm.object1.object_name,
+            x: cdm.object1.x,
+            y: cdm.object1.y,
+            z: cdm.object1.z,
+            x_dot: cdm.object1.x_dot,
+            y_dot: cdm.object1.y_dot,
+            z_dot: cdm.object1.z_dot,
+        },
+        object2: PyCdmObject {
+            object_name: cdm.object2.object_name,
+            x: cdm.object2.x,
+            y: cdm.object2.y,
+            z: cdm.object2.z,
+            x_dot: cdm.object2.x_dot,
+            y_dot: cdm.object2.y_dot,
+            z_dot: cdm.object2.z_dot,
+        },
+    })
+}
+
+#[pyfunction]
+fn compute_pc_from_cdm(path: String) -> PyResult<f64> {
+    let cdm = parse_cdm_kvn(&path).map_err(|e| PyRuntimeError::new_err(e))?;
+    
+    let r1 = Vector3::new(cdm.object1.x, cdm.object1.y, cdm.object1.z);
+    let v1 = Vector3::new(cdm.object1.x_dot, cdm.object1.y_dot, cdm.object1.z_dot);
+    let r2 = Vector3::new(cdm.object2.x, cdm.object2.y, cdm.object2.z);
+    let v2 = Vector3::new(cdm.object2.x_dot, cdm.object2.y_dot, cdm.object2.z_dot);
+    
+    // CDM covariances are often in km^2, let's verify if pc_2d_foster expects km or m.
+    // Our pc_2d_foster expects km.
+    let cov1_3x3 = cdm.object1.covariance.fixed_view::<3, 3>(0, 0).into_owned();
+    let cov2_3x3 = cdm.object2.covariance.fixed_view::<3, 3>(0, 0).into_owned();
+    
+    // ndarray expects its own type
+    let cov1_ndarray = Array2::from_shape_vec((3, 3), cov1_3x3.iter().cloned().collect()).unwrap();
+    let cov2_ndarray = Array2::from_shape_vec((3, 3), cov2_3x3.iter().cloned().collect()).unwrap();
+
+    let hbr_m = cdm.header.hbr.unwrap_or(15.0); // Default 15m if not in CDM
+    let hbr_km = hbr_m / 1000.0;
+
+    let output = pc_2d_foster(
+        &r1, &v1, &cov1_ndarray,
+        &r2, &v2, &cov2_ndarray,
+        hbr_km, 1e-8, HbrType::Circle
+    );
+
+    Ok(output.pc)
+}
+
 #[pymodule]
 fn cara_py(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_2d_foster, m)?)?;
     m.add_function(wrap_pyfunction!(compute_pc_circle, m)?)?;
+    m.add_function(wrap_pyfunction!(compute_pc_from_cdm, m)?)?;
     m.add_function(wrap_pyfunction!(rotate_eci_to_ric, m)?)?;
     m.add_function(wrap_pyfunction!(cart_to_keplerian, m)?)?;
     m.add_function(wrap_pyfunction!(get_timestring_to_jd, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_cdm, m)?)?;
     m.add_class::<KeplerianElements>()?;
+    m.add_class::<PyCdm>()?;
+    m.add_class::<PyCdmHeader>()?;
+    m.add_class::<PyCdmObject>()?;
     Ok(())
 }
