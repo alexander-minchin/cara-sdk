@@ -28,6 +28,19 @@ def main():
     pc_circle = cara_py.compute_pc_circle(r1, v1, cov1, r2, v2, cov2, hbr)
     print(f"2D Pc (Circle): {pc_circle:.4e}")
 
+    # 4b. Calculate 2D Pc using Elrod Method
+    pc_elrod = cara_py.compute_pc_elrod(r1, v1, cov1, r2, v2, cov2, hbr)
+    print(f"2D Pc (Elrod):  {pc_elrod:.4e}")
+
+    # 4c. Calculate Pc using SDMC (Monte Carlo)
+    # Using a 6x6 covariance by padding the 3x3 position covariance
+    cov1_6x6 = np.zeros((6, 6))
+    cov1_6x6[:3, :3] = cov1
+    cov2_6x6 = np.zeros((6, 6))
+    cov2_6x6[:3, :3] = cov2
+    pc_sdmc = cara_py.compute_pc_sdmc(r1, v1, cov1_6x6, r2, v2, cov2_6x6, hbr, 100000, 42)
+    print(f"Pc (SDMC):      {pc_sdmc:.4e}")
+
     # 5. Rotate ECI covariance to RIC frame
     ric_cov = cara_py.rotate_eci_to_ric(cov1, r1, v1)
     print("\nRIC Covariance Matrix:")

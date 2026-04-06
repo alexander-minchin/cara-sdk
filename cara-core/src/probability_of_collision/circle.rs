@@ -68,7 +68,7 @@ pub fn pc_circle(
     let mut l1 = eig.l1;
     let mut l2 = eig.l2;
     let v1_vec = eig.v1;
-    let _v2_vec = eig.v2;
+    let v2_vec = eig.v2;
 
     // Remediation
     let f_clip = 1e-4;
@@ -88,9 +88,11 @@ pub fn pc_circle(
     let sz = l2.sqrt();
 
     // Miss distance components in the conjunction plane (xm, zm)
-    // For consistency with MATLAB's PcCircle.m:
-    let xm = r_mag * v1_vec[0].abs();
-    let zm = r_mag * v1_vec[1].abs();
+    let r_xyz = eci2xyz * r_rel;
+    let r_cp = Vector2::new(r_xyz[0], r_xyz[2]);
+    
+    let xm = r_cp.dot(&v1_vec).abs();
+    let zm = r_cp.dot(&v2_vec).abs();
 
     let mut clip_bound_set = false;
     let pc = match mode {
