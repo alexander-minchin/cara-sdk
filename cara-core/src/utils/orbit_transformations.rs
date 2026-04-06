@@ -552,4 +552,31 @@ mod tests {
         assert_relative_eq!(ric_cov[[2,2]], 1.0);
         assert_relative_eq!(ric_cov[[0,1]], 0.0, epsilon = 1e-15);
     }
+
+    #[test]
+    fn test_cart_to_equinoctial() {
+        // Data from convert_cartesian_to_equinoctial_UnitTest.m
+        let r = Vector3::new(6513.711946044443, 6882.748803674651, 6438.350633995484);
+        let v = Vector3::new(4.902960531245754, -1.518827797965108, -1.983803852683226);
+        let mu = 3.986004418e5;
+        let fr = 1.0;
+
+        let res = cart_to_equinoctial(&r, &v, fr, mu).unwrap();
+        
+        // Expected values: a, n, af, ag, chi, psi, lm
+        let expected = vec![10141.66456, 0.000618165872034742, -0.186939977644424, 0.0251358447064123, -0.206130724502682, -2.36641891694603, -1.08358461740347];
+        
+        assert_relative_eq!(res.a, expected[0], epsilon = 1e-5);
+        assert_relative_eq!(res.n, expected[1], epsilon = 1e-8);
+        assert_relative_eq!(res.af, expected[2], epsilon = 1e-8);
+        assert_relative_eq!(res.ag, expected[3], epsilon = 1e-8);
+        assert_relative_eq!(res.chi, expected[4], epsilon = 1e-8);
+        assert_relative_eq!(res.psi, expected[5], epsilon = 1e-8);
+        // Longitude can be shifted by 2pi
+        let mut diff_lm = (res.lm - expected[6]).abs();
+        if diff_lm > std::f64::consts::PI {
+            diff_lm = (diff_lm - 2.0 * std::f64::consts::PI).abs();
+        }
+        assert!(diff_lm < 1e-5);
+    }
 }

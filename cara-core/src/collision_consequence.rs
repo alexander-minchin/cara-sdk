@@ -91,3 +91,42 @@ pub fn nasa_sem_rcs_to_size(z: f64) -> f64 {
         xztab[0].0 // Fallback
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn test_collision_consequence_nasa_breakup() {
+        // Data from CollisionConsequenceNumPieces_UnitTest.m
+        let primary_mass = 2000.0;
+        let v_rel = 10000.0;
+        
+        let cases = vec![
+            (0.01, false, 17),
+            (1.6, false, 755),
+            (1000.0, true, 6801),
+            (3000.0, true, 9977),
+        ];
+
+        for (sec_mass, exp_cat, exp_pieces) in cases {
+            let res = calculate_num_pieces(primary_mass, v_rel, sec_mass, None);
+            assert_eq!(res.is_catastrophic, exp_cat, "Catastrophic mismatch for mass {}", sec_mass);
+            // Allow some rounding differences if necessary, but here round() should match
+            assert_eq!(res.num_pieces, exp_pieces, "Piece count mismatch for mass {}", sec_mass);
+        }
+    }
+
+    #[test]
+    fn test_nasa_sem_rcs_to_size() {
+        // Optical regime
+        assert_relative_eq!(nasa_sem_rcs_to_size(10.0), (40.0 / std::f64::consts::PI).sqrt());
+        // Rayleigh regime
+        assert_relative_eq!(nasa_sem_rcs_to_size(0.0001), (0.0001 / (2.25 * std::f64::consts::PI.powi(5))).powf(1.0/6.0));
+        // Mie regime (interpolation)
+        // Point between 0.001220 and 0.001735
+        let x = nasa_sem_rcs_to_size(0.0015);
+        assert!(x > 0.10997 && x < 0.11685);
+    }
+}
