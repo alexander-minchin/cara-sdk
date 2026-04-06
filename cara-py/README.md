@@ -37,3 +37,7 @@ print(f"Pc: {pc}")
 ```
 
 For more details, see the [Python User Guide](../docs/PYTHON_USER_GUIDE.md).
+
+## Licensing
+
+This project is a derivative work of NASA's CARA Analysis Tools and is licensed under the NASA Open Source Agreement (NOSA) v1.3. See the root `README.md` and the `legal/` directory for full details.

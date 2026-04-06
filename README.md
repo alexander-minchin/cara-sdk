@@ -53,6 +53,21 @@ maturin develop
 
 - [Python User Guide](docs/PYTHON_USER_GUIDE.md) - Detailed usage and examples.
 
-## License
+## Licensing and Attribution
 
-MIT OR Apache-2.0
+This project is a derivative work of the **NASA CARA Analysis Tools**, originally developed by the Conjunction Assessment Risk Analysis (CARA) team at the National Aeronautics and Space Administration (NASA).
+
+### Original Source
+- **Original Project:** [NASA CARA Analysis Tools](https://github.com/nasa/CARA_Analysis_Tools)
+- **Original License:** NASA Open Source Agreement (NOSA)
+
+### This Port
+The Rust implementation and associated bindings in this repository are provided under the **NASA Open Source Agreement (NOSA) version 1.3**. 
+
+By using, distributing, or contributing to this project, you agree to abide by the terms of the NOSA. Copies of the applicable NASA Open Source Software Agreements can be found in the `legal/` directory:
+- `legal/NOSA_GSC-18593-1.pdf`
+- `legal/NOSA_GSC-18848-1.pdf`
+- `legal/NOSA_GSC-19374-1.pdf`
+
+## Disclaimer
+This software is provided "as is" without any warranty of any kind, either expressed, implied, or statutory.
