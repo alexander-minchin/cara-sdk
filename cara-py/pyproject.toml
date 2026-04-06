@@ -13,4 +13,4 @@ dependencies = [
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
-module-name = "cara_py"
+module-name = "cara_py.cara_py"
