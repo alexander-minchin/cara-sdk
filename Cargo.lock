@@ -107,6 +107,7 @@ name = "cara-py"
 version = "0.1.0"
 dependencies = [
  "cara-core",
+ "nalgebra",
  "numpy",
  "pyo3",
 ]

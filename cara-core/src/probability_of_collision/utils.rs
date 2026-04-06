@@ -1,0 +1,106 @@
+use nalgebra::{Matrix2, Vector2};
+
+pub struct Eig2x2Output {
+    pub v1: Vector2<f64>,
+    pub v2: Vector2<f64>,
+    pub l1: f64,
+    pub l2: f64,
+}
+
+/// Eigenvalue and eigenvector solver for 2x2 symmetric matrices.
+///
+/// Ported from MATLAB: eig2x2.m
+pub fn eig2x2(a: f64, b: f64, d: f64) -> Eig2x2Output {
+    let mat = Matrix2::new(a, b, b, d);
+    let eigen = nalgebra::SymmetricEigen::new(mat);
+    
+    // SymmetricEigen returns eigenvalues in increasing order
+    let l2 = eigen.eigenvalues[0];
+    let l1 = eigen.eigenvalues[1];
+    let v2 = eigen.eigenvectors.column(0).into_owned();
+    let v1 = eigen.eigenvectors.column(1).into_owned();
+
+    Eig2x2Output { v1, v2, l1, l2 }
+}
+
+use crate::utils::orbit_transformations::{cart_to_equinoctial, jacobian_equinoctial_to_cartesian};
+use crate::utils::augmented_math::{cov_make_symmetric, cov_rem_eig_val_clip};
+use crate::utils::constants::MU_EARTH;
+use ndarray::Array2;
+use nalgebra::{Vector3, Vector6, Matrix6};
+
+pub struct EquinoctialMatricesOutput {
+    pub x: Vector6<f64>,
+    pub p: Matrix6<f64>,
+    pub e: Vector6<f64>,
+    pub j: Matrix6<f64>,
+    pub k: Matrix6<f64>,
+    pub q: Matrix6<f64>,
+    pub q_rem_stat: bool,
+    pub q_raw: Matrix6<f64>,
+    pub q_rem: Matrix6<f64>,
+    pub c_rem: Matrix6<f64>,
+}
+
+/// Calculate equinoctial state, covariance and Jacobian matrices.
+///
+/// Ported from MATLAB: EquinoctialMatrices.m
+pub fn equinoctial_matrices(
+    r: &Vector3<f64>,
+    v: &Vector3<f64>,
+    c: &Matrix6<f64>,
+    rem_eq_cov: bool,
+) -> Option<EquinoctialMatricesOutput> {
+    // Pos/vel state vec in km units
+    let x = Vector6::new(r[0] / 1e3, r[1] / 1e3, r[2] / 1e3, v[0] / 1e3, v[1] / 1e3, v[2] / 1e3);
+    // Pos/vel covariance in km^2 units
+    let p = c / 1e6;
+
+    let r_km = Vector3::new(x[0], x[1], x[2]);
+    let v_km = Vector3::new(x[3], x[4], x[5]);
+
+    let eq = cart_to_equinoctial(&r_km, &v_km, 1.0, MU_EARTH)?;
+    
+    let e = Vector6::new(eq.n, eq.af, eq.ag, eq.chi, eq.psi, eq.lm % (2.0 * std::f64::consts::PI));
+    
+    let j = jacobian_equinoctial_to_cartesian(&e, &x, 1.0, MU_EARTH);
+    
+    let k = j.try_inverse()?;
+    
+    let q_raw_mat = k * p * k.transpose();
+    let q_raw_ndarray = Array2::from_shape_vec((6, 6), q_raw_mat.iter().cloned().collect()).unwrap();
+    let q_sym_ndarray = cov_make_symmetric(&q_raw_ndarray);
+    let q = Matrix6::from_iterator(q_sym_ndarray.iter().cloned());
+    
+    let (q_final, q_rem, q_rem_stat, p_final) = if rem_eq_cov {
+        let rem_out = cov_rem_eig_val_clip(&q_sym_ndarray, 0.0);
+        if rem_out.clip_status {
+            let q_rem_mat = Matrix6::from_iterator(rem_out.a_rem.iter().cloned());
+            let p_rem_mat = j * q_rem_mat * j.transpose();
+            // In MATLAB: P = cov_make_symmetric(J * Q * J');
+            let p_rem_ndarray = Array2::from_shape_vec((6, 6), p_rem_mat.iter().cloned().collect()).unwrap();
+            let p_final_ndarray = cov_make_symmetric(&p_rem_ndarray);
+            (q_rem_mat, q_rem_mat, true, Matrix6::from_iterator(p_final_ndarray.iter().cloned()))
+        } else {
+            (q, q, false, p)
+        }
+    } else {
+        let rem_out = cov_rem_eig_val_clip(&q_sym_ndarray, 0.0);
+        (q, q, rem_out.clip_status, p)
+    };
+
+    let c_rem = p_final * 1e6;
+
+    Some(EquinoctialMatricesOutput {
+        x,
+        p: p_final,
+        e,
+        j,
+        k,
+        q: q_final,
+        q_rem_stat,
+        q_raw: q,
+        q_rem,
+        c_rem,
+    })
+}
