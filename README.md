@@ -18,7 +18,12 @@ A high-performance Rust port of the NASA CARA (Conjunction Assessment Risk Analy
   - **Pc Circle:** High-precision numerical integration (Gauss-Chebyshev).
   - **Pc Elrod:** Efficient analytical error function method.
   - **Pc SDMC:** High-fidelity Scaled Distance Monte Carlo.
+  - **Maximum Pc (Frisbee):** Calculates upper bound Pc when covariances are incomplete.
+  - **Pc Dilution Analysis:** Iterative search for maximum Pc and dilution region detection.
   - **Covariance Remediation:** Automatic eigenvalue clipping for numerical stability.
+- **Collision Consequence:**
+  - **Debris Estimation:** Predicts the number of pieces generated in a collision using the NASA Breakup Model.
+  - **Size Estimation:** Implementation of the NASA Size Estimation Model (SEM) for RCS-to-size conversion.
 - **Covariance Realism:**
   - **Normality Tests:** Cramer-von Mises and Anderson-Darling goodness-of-fit tests.
   - **Residual Evaluation:** Analyze if observed residuals conform to predicted covariances.
