@@ -1,4 +1,0 @@
-Relative<ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>, ArrayBase<OwnedRepr<{float}>, Dim<[usize; 2]>>>
-ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>
-ArrayBase<OwnedRepr<{float}>, Dim<[usize; 2]>>
-ArrayBase<OwnedRepr<f64>, Dim<[usize; 2]>>: AbsDiffEq<ArrayBase<OwnedRepr<{float}>, Dim<[usize; 2]>>>
