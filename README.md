@@ -14,9 +14,14 @@ A high-performance Rust port of the NASA CARA (Conjunction Assessment Risk Analy
 ## Features
 
 - **Probability of Collision (Pc):**
-  - 2D Foster Method.
-  - Pc Circle (Gauss-Chebyshev Quadrature).
-  - Covariance Remediation (Eigenvalue Clipping).
+  - **2D Foster Method:** Standard analytical approach.
+  - **Pc Circle:** High-precision numerical integration (Gauss-Chebyshev).
+  - **Pc Elrod:** Efficient analytical error function method.
+  - **Pc SDMC:** High-fidelity Scaled Distance Monte Carlo.
+  - **Covariance Remediation:** Automatic eigenvalue clipping for numerical stability.
+- **CDM Analysis:**
+  - **KVN Parser:** Read standard CCSDS Conjunction Data Messages.
+  - **Automated Calculation:** Directly compute Pc from CDM files.
 - **Orbit Transformations:**
   - Cartesian to/from Keplerian.
   - Cartesian to Equinoctial elements.
