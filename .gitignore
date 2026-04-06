@@ -1,5 +1,7 @@
 /target
 /.venv
+ast.cdm
+**/ast.cdm
 /cara-py/target
 /cara-java/target
 /cara-wasm/target

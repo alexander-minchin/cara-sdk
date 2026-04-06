@@ -7,7 +7,7 @@ use cara_core::probability_of_collision::circle::{pc_circle, PcCircleEstimationM
 use cara_core::probability_of_collision::elrod::pc_elrod;
 use cara_core::probability_of_collision::sdmc::pc_sdmc;
 use cara_core::utils::time_transformations::timestring_to_jd;
-use cara_core::utils::orbit_transformations::{cart_to_kep, eci_to_ric, AnomalyType, UnitType};
+use cara_core::utils::orbit_transformations::{cart_to_kep, eci_to_ric, ric_to_eci, AnomalyType, UnitType};
 use cara_core::cdm::{parse_cdm_kvn};
 use nalgebra::{Vector3, Vector6, Matrix3, Matrix6};
 
@@ -95,18 +95,23 @@ fn compute_pc_from_cdm(path: String) -> PyResult<f64> {
     let r2 = Vector3::new(cdm.object2.x, cdm.object2.y, cdm.object2.z);
     let v2 = Vector3::new(cdm.object2.x_dot, cdm.object2.y_dot, cdm.object2.z_dot);
     
-    let cov1_3x3 = cdm.object1.covariance.fixed_view::<3, 3>(0, 0).into_owned();
-    let cov2_3x3 = cdm.object2.covariance.fixed_view::<3, 3>(0, 0).into_owned();
+    // CDM covariances are in RIC frame (m^2). Convert to ECI (or parent frame) and km^2.
+    let cov1_ndarray = (Array2::from_shape_vec((6, 6), cdm.object1.covariance.iter().cloned().collect()).unwrap()) / 1e6;
+    let cov2_ndarray = (Array2::from_shape_vec((6, 6), cdm.object2.covariance.iter().cloned().collect()).unwrap()) / 1e6;
     
-    let cov1_ndarray = Array2::from_shape_vec((3, 3), cov1_3x3.iter().cloned().collect()).unwrap();
-    let cov2_ndarray = Array2::from_shape_vec((3, 3), cov2_3x3.iter().cloned().collect()).unwrap();
+    let cov1_eci_full = ric_to_eci(&cov1_ndarray, &r1, &v1, true);
+    let cov2_eci_full = ric_to_eci(&cov2_ndarray, &r2, &v2, true);
+
+    // Extract 3x3 position part in ECI
+    let cov1_eci_3x3 = cov1_eci_full.slice(ndarray::s![0..3, 0..3]).to_owned();
+    let cov2_eci_3x3 = cov2_eci_full.slice(ndarray::s![0..3, 0..3]).to_owned();
 
     let hbr_m = cdm.header.hbr.unwrap_or(15.0); 
     let hbr_km = hbr_m / 1000.0;
 
     let output = pc_2d_foster(
-        &r1, &v1, &cov1_ndarray,
-        &r2, &v2, &cov2_ndarray,
+        &r1, &v1, &cov1_eci_3x3,
+        &r2, &v2, &cov2_eci_3x3,
         hbr_km, 1e-8, HbrType::Circle
     );
 

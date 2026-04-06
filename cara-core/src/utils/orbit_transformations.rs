@@ -57,6 +57,57 @@ pub fn eci_to_ric(eci_cov: &Array2<f64>, r: &Vector3<f64>, v: &Vector3<f64>, mak
     ric_cov
 }
 
+/// Rotate RIC covariance matrix to ECI frame.
+pub fn ric_to_eci(ric_cov: &Array2<f64>, r: &Vector3<f64>, v: &Vector3<f64>, make_symmetric: bool) -> Array2<f64> {
+    let h = r.cross(v);
+    let rhat = r.normalize();
+    let chat = h.normalize();
+    let ihat = chat.cross(&rhat);
+
+    let eci_to_ric_3x3 = Matrix3::from_rows(&[
+        rhat.transpose(),
+        ihat.transpose(),
+        chat.transpose(),
+    ]);
+    
+    // The rotation from RIC to ECI is the transpose of ECI to RIC
+    let ric_to_eci_3x3 = eci_to_ric_3x3.transpose();
+
+    let size = ric_cov.nrows();
+    let mut eci_cov: Array2<f64>;
+
+    if size == 3 {
+        let ric_mat = Matrix3::from_iterator(ric_cov.iter().cloned());
+        let eci_mat = ric_to_eci_3x3 * ric_mat * ric_to_eci_3x3.transpose();
+        eci_cov = Array2::from_shape_vec((3, 3), eci_mat.iter().cloned().collect()).unwrap();
+    } else if size >= 6 {
+        let mut ric_to_eci_full = Array2::zeros((size, size));
+        
+        for i in 0..3 {
+            for j in 0..3 {
+                let val = ric_to_eci_3x3[(i, j)];
+                ric_to_eci_full[[i, j]] = val;
+                ric_to_eci_full[[i + 3, j + 3]] = val;
+            }
+        }
+        
+        for i in 6..size {
+            ric_to_eci_full[[i, i]] = 1.0;
+        }
+
+        let temp = ric_to_eci_full.dot(ric_cov);
+        eci_cov = temp.dot(&ric_to_eci_full.t());
+    } else {
+        panic!("Unsupported covariance matrix size: {}", size);
+    }
+
+    if make_symmetric {
+        eci_cov = cov_make_symmetric(&eci_cov);
+    }
+
+    eci_cov
+}
+
 /// Convert mean anomaly to eccentric anomaly.
 ///
 /// Ported from MATLAB: Mean2EccAnomaly.m
