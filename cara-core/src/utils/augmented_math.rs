@@ -1,5 +1,127 @@
+use statrs::distribution::{Normal as StatNormal, ChiSquared, ContinuousCDF};
+use libm::{erf, erfc};
 use nalgebra::{DMatrix, SymmetricEigen};
 use ndarray::{Array2, ArrayD};
+
+/// EDF statistics for Cramer-von Mises, Watson, and Anderson-Darling tests.
+pub struct EdfStats {
+    pub w2: f64,
+    pub u2: f64,
+    pub a2: f64,
+}
+
+/// p-values for Cramer-von Mises, Watson, and Anderson-Darling tests.
+pub struct EdfPValues {
+    pub w2_p: f64,
+    pub u2_p: f64,
+    pub a2_p: f64,
+}
+
+/// Distribution types for GOF testing.
+pub enum DistType {
+    Normal { mean: f64, std_dev: f64 },
+    ChiSquared { df: f64 },
+}
+
+/// Performs an EDF goodness-of-fit test for a fully-specified distribution.
+///
+/// Ported from MATLAB: FullSpecDistVec.m
+pub fn full_spec_dist_gof(x: &[f64], dist: DistType) -> (EdfPValues, EdfStats) {
+    let mut sorted_x = x.to_vec();
+    sorted_x.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    let n = sorted_x.len() as f64;
+    let z: Vec<f64> = match dist {
+        DistType::Normal { mean, std_dev } => {
+            let d = StatNormal::new(mean, std_dev).unwrap();
+            sorted_x.iter().map(|&val| d.cdf(val)).collect()
+        }
+        DistType::ChiSquared { df } => {
+            let d = ChiSquared::new(df).unwrap();
+            sorted_x.iter().map(|&val| d.cdf(val)).collect()
+        }
+    };
+
+    let q = calculate_edf_stats(&z);
+    let p = eval_edf_p_values(&q, n as usize);
+
+    (p, q)
+}
+
+fn calculate_edf_stats(z: &[f64]) -> EdfStats {
+    let n = z.len() as f64;
+    
+    // Cramer - von Mises (W2)
+    let mut w2_sum = 0.0;
+    for (i, &zi) in z.iter().enumerate() {
+        let val = zi - (2.0 * (i as f64 + 1.0) - 1.0) / (2.0 * n);
+        w2_sum += val.powi(2);
+    }
+    let w2 = w2_sum + 1.0 / (12.0 * n);
+
+    // Watson (U2)
+    let z_mean: f64 = z.iter().sum::<f64>() / n;
+    let u2 = w2 - n * (z_mean - 0.5).powi(2);
+
+    // Anderson-Darling (A2)
+    let mut a2_sum = 0.0;
+    for (i, &zi) in z.iter().enumerate() {
+        let id = i as f64 + 1.0;
+        let term1 = (2.0 * id - 1.0) * zi.ln();
+        let term2 = (2.0 * n + 1.0 - 2.0 * id) * (1.0 - zi).ln();
+        a2_sum += term1 + term2;
+    }
+    let a2 = -n - (1.0 / n) * a2_sum;
+
+    EdfStats { w2, u2, a2 }
+}
+
+fn eval_edf_p_values(q: &EdfStats, n: usize) -> EdfPValues {
+    let nf = n as f64;
+    
+    // Test statistic transformations for sample size adjustment
+    let w_star = (q.w2 - 0.4 / nf + 0.6 / nf.powi(2)) * (1.0 + 1.0 / nf);
+    let u_star = (q.u2 - 0.1 / nf + 0.1 / nf.powi(2)) * (1.0 + 0.8 / nf);
+    let a_star = q.a2; // No adjustment for A2 in this specific Case 0 logic
+
+    let p_vals = [
+        interpolate_p_value(w_star, 1),
+        interpolate_p_value(u_star, 2),
+        interpolate_p_value(a_star, 3),
+    ];
+
+    EdfPValues {
+        w2_p: p_vals[0],
+        u2_p: p_vals[1],
+        a2_p: p_vals[2],
+    }
+}
+
+fn interpolate_p_value(q_star: f64, test_type: usize) -> f64 {
+    let edf_boundary = [0.25, 0.15, 0.10, 0.05, 0.025, 0.01, 0.005, 0.001];
+    let edf_table = [
+        [0.209, 0.284, 0.347, 0.461, 0.581, 0.743, 0.869, 1.167], // W2
+        [0.105, 0.131, 0.152, 0.187, 0.222, 0.268, 0.304, 0.385], // U2
+        [1.248, 1.610, 1.933, 2.492, 3.070, 3.880, 4.500, 6.000], // A2
+    ];
+
+    let table = &edf_table[test_type - 1];
+
+    if q_star < table[0] {
+        return 0.26;
+    }
+    if q_star > table[7] {
+        return 0.0009;
+    }
+
+    for i in 0..7 {
+        if q_star >= table[i] && q_star <= table[i+1] {
+            let t = (q_star - table[i]) / (table[i+1] - table[i]);
+            return edf_boundary[i] + t * (edf_boundary[i+1] - edf_boundary[i]);
+        }
+    }
+    0.0
+}
 
 /// Positive definite status of a matrix.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -86,7 +208,6 @@ pub fn cov_rem_eig_val_clip(a_raw: &Array2<f64>, l_clip: f64) -> CovRemOutput {
         a_rem,
     }
 }
-use libm::{erf, erfc};
 
 /// Calculate the difference d = erf(a) - erf(b), with improved accuracy for large values.
 ///

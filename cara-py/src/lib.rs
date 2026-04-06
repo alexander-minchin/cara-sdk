@@ -322,6 +322,30 @@ fn compute_pc_elrod_from_cdm(path: String) -> PyResult<f64> {
     Ok(output.pc)
 }
 
+use cara_core::utils::augmented_math::{full_spec_dist_gof, DistType as CoreDistType};
+
+#[pyclass]
+struct PyEdfPValues {
+    #[pyo3(get)]
+    pub w2_p: f64,
+    #[pyo3(get)]
+    pub u2_p: f64,
+    #[pyo3(get)]
+    pub a2_p: f64,
+}
+
+#[pyfunction]
+fn test_normality(data: PyReadonlyArray1<f64>, mean: f64, std_dev: f64) -> PyResult<PyEdfPValues> {
+    let data_vec = data.as_slice()?.to_vec();
+    let (p, _q) = full_spec_dist_gof(&data_vec, CoreDistType::Normal { mean, std_dev });
+    
+    Ok(PyEdfPValues {
+        w2_p: p.w2_p,
+        u2_p: p.u2_p,
+        a2_p: p.a2_p,
+    })
+}
+
 #[pymodule]
 fn cara_py(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(compute_2d_foster, m)?)?;
@@ -335,9 +359,11 @@ fn cara_py(_py: Python<'_>, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(cart_to_keplerian, m)?)?;
     m.add_function(wrap_pyfunction!(get_timestring_to_jd, m)?)?;
     m.add_function(wrap_pyfunction!(parse_cdm, m)?)?;
+    m.add_function(wrap_pyfunction!(test_normality, m)?)?;
     m.add_class::<KeplerianElements>()?;
     m.add_class::<PyCdm>()?;
     m.add_class::<PyCdmHeader>()?;
     m.add_class::<PyCdmObject>()?;
+    m.add_class::<PyEdfPValues>()?;
     Ok(())
 }
