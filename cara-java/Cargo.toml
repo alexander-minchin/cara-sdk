@@ -1,0 +1,15 @@
+[package]
+name = "cara-java"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Java bindings for cara-core"
+
+[lib]
+name = "cara_java"
+crate-type = ["cdylib"]
+
+[dependencies]
+cara-core = { path = "../cara-core" }
+jni = "0.21"

@@ -1,0 +1,16 @@
+[package]
+name = "cara-py"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Python bindings for cara-core"
+
+[lib]
+name = "cara_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+cara-core = { path = "../cara-core" }
+pyo3 = { version = "0.20", features = ["extension-module"] }
+numpy = "0.20"

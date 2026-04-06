@@ -1,0 +1,16 @@
+[package]
+name = "cara-cabi"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "C ABI for cara-core"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cara-core = { path = "../cara-core" }
+
+[build-dependencies]
+cbindgen = "0.24"

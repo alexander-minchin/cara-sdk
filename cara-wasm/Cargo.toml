@@ -1,0 +1,14 @@
+[package]
+name = "cara-wasm"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "WebAssembly bindings for cara-core"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cara-core = { path = "../cara-core" }
+wasm-bindgen = "0.2"
