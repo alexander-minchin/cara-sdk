@@ -3,11 +3,14 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "cara"
+name = "cara_py"
 version = "0.1.0"
+description = "Python bindings for CARA SDK"
+requires-python = ">=3.7"
 dependencies = [
     "numpy>=1.20",
 ]
 
 [tool.maturin]
 features = ["pyo3/extension-module"]
+module-name = "cara_py"
