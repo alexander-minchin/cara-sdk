@@ -41,6 +41,18 @@ def main():
     pc_sdmc = cara_py.compute_pc_sdmc(r1, v1, cov1_6x6, r2, v2, cov2_6x6, hbr, 100000, 42)
     print(f"Pc (SDMC):      {pc_sdmc:.4e}")
 
+    # 4d. Calculate Frisbee Max Pc
+    max_pc_frisbee = cara_py.compute_frisbee_max_pc(r1, v1, cov1, r2, v2, cov2, hbr)
+    print(f"Max Pc (Frisbee): {max_pc_frisbee:.4e}")
+
+    # 4e. Calculate Pc Dilution
+    dil_out = cara_py.compute_pc_dilution(r1, v1, cov1, r2, v2, cov2, hbr, "both")
+    print(f"Pc Dilution:")
+    print(f"  Nominal Pc: {dil_out.pc_one:.4e}")
+    print(f"  Max Pc:     {dil_out.pc_max:.4e}")
+    print(f"  Sf at Max:  {dil_out.sf_max:.4f}")
+    print(f"  Diluted:    {dil_out.diluted}")
+
     # 5. Rotate ECI covariance to RIC frame
     ric_cov = cara_py.rotate_eci_to_ric(cov1, r1, v1)
     print("\nRIC Covariance Matrix:")
