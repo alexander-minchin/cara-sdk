@@ -1,6 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use cara_core::probability_of_collision::sdmc::pc_sdmc;
 use cara_core::probability_of_collision::circle::{pc_circle, PcCircleEstimationMode};
+use cara_core::probability_of_collision::foster::{pc_2d_foster, HbrType};
 use nalgebra::{Vector3, Matrix6, Matrix3};
 
 fn bench_pc_methods(c: &mut Criterion) {
@@ -17,9 +18,22 @@ fn bench_pc_methods(c: &mut Criterion) {
     let cov1_3x3 = Matrix3::new(0.01, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.01);
     let cov2_3x3 = Matrix3::new(0.01, 0.0, 0.0, 0.0, 0.01, 0.0, 0.0, 0.0, 0.01);
     
+    // ndarray for foster
+    use ndarray::Array2;
+    let cov1_ndarray = Array2::from_elem((3, 3), 0.01);
+    let cov2_ndarray = Array2::from_elem((3, 3), 0.01);
+
     let hbr = 0.01;
 
     let mut group = c.benchmark_group("Pc Algorithms");
+
+    group.bench_function("Foster (2D Analytical)", |b| {
+        b.iter(|| pc_2d_foster(
+            black_box(&r1), black_box(&v1), black_box(&cov1_ndarray),
+            black_box(&r2), black_box(&v2), black_box(&cov2_ndarray),
+            black_box(hbr), black_box(1e-8), black_box(HbrType::Circle)
+        ))
+    });
 
     group.bench_function("SDMC (100k trials)", |b| {
         b.iter(|| pc_sdmc(
